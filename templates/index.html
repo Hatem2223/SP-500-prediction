@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S&P 500 Predictor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>S&P 500 Market Predictor</h1>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Enter Market Data</h5>
+                        <form id="predictionForm">
+                            <div class="mb-3">
+                                <label for="open" class="form-label">Opening Price ($)</label>
+                                <input type="number" class="form-control" id="open" name="open" step="0.01" required placeholder="e.g., 4500.00">
+                            </div>
+                            <div class="mb-3">
+                                <label for="high" class="form-label">High Price ($)</label>
+                                <input type="number" class="form-control" id="high" name="high" step="0.01" required placeholder="e.g., 4520.00">
+                            </div>
+                            <div class="mb-3">
+                                <label for="low" class="form-label">Low Price ($)</label>
+                                <input type="number" class="form-control" id="low" name="low" step="0.01" required placeholder="e.g., 4480.00">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100" id="submitBtn">🚀 Predict Next Day Close</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4" id="loading" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-center mt-2">Analyzing market data and generating prediction...</p>
+        </div>
+        <div class="mt-4" id="result" style="display: none;"></div>
+        <div class="alert alert-secondary mt-4" role="alert">
+            <h4 class="alert-heading">💡 Example Data</h4>
+            <p>Try these sample values to test the prediction:</p>
+            <p><strong>Open:</strong> 4500.00 | <strong>High:</strong> 4520.00 | <strong>Low:</strong> 4480.00</p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('predictionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            
+            // Get form data
+            const formData = {
+                open: parseFloat(document.getElementById('open').value),
+                high: parseFloat(document.getElementById('high').value),
+                low: parseFloat(document.getElementById('low').value)
+            };
+            
+            // Validate data
+            if (formData.high < formData.low) {
+                showResult('danger', 'High price cannot be lower than low price!');
+                return;
+            }
+            
+            if (formData.open < formData.low || formData.open > formData.high) {
+                showResult('danger', 'Opening price should be between high and low prices!');
+                return;
+            }
+            
+            // Show loading
+            submitBtn.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult('success', `
+                        <h3>🎯 Prediction Result</h3>
+                        <div class="fs-1 fw-bold">$${data.predicted_close.toLocaleString()}</div>
+                        <p><strong>Predicted for:</strong> ${data.prediction_date}</p>
+                        
+                        <div class="alert alert-info mt-3">
+                            <p><strong>Your Input:</strong></p>
+                            <p>Open: $${data.input_data.open.toLocaleString()} | 
+                               High: $${data.input_data.high.toLocaleString()} | 
+                               Low: $${data.input_data.low.toLocaleString()}</p>
+                        </div>
+                    `);
+                } else {
+                    showResult('danger', `❌ Error: ${data.error}`);
+                }
+            } catch (error) {
+                showResult('danger', '❌ Network error. Please try again.');
+            } finally {
+                submitBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        });
+        
+        function showResult(type, content) {
+            const result = document.getElementById('result');
+            result.className = `alert alert-${type}`;
+            result.innerHTML = content;
+            result.style.display = 'block';
+            
+            // Scroll to result
+            result.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
